@@ -121,7 +121,7 @@
                     </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-gray-100">
-                    <!-- Строки будут подгружаться лениво -->
+                    
                     </tbody>
                 </table>
             </div>
@@ -145,9 +145,8 @@
 </div>
 
 <script>
-    // Простейший парсер TSV (поддерживаем только TSV)
+    // TSV only
     function detectDelimiter(filename) {
-        // Всегда используем табуляцию как разделитель
         return '\t';
     }
 
@@ -425,11 +424,9 @@
         }
     });
 
-    // При открытии через GitHub автоматически подгружаем файлы из репозитория
-    // translation_en.tsv -> левая таблица, translation_ru.tsv -> правая
     (async function autoLoadFromRepo() {
-        await loadRepoSide('left', 'translation_en.tsv', dom.leftInfo);
-        await loadRepoSide('right', 'translation_ru.tsv', dom.rightInfo);
+        await loadRepoSide('left', '../translation_en.tsv', dom.leftInfo);
+        await loadRepoSide('right', '../translation_ru.tsv', dom.rightInfo);
     })();
 </script>
 </body>
