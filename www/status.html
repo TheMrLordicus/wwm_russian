@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>WWM – статистика переводов</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body class="bg-white text-gray-900">
@@ -88,41 +89,31 @@
                 </div>
                 <div class="text-center p-3 bg-gray-50 rounded">
                     <div class="text-2xl font-bold text-gray-900" id="uniqueEmpty">-</div>
-                    <div class="text-xs text-gray-600 mt-1">Машинный RU / основной RU</div>
+                    <div class="text-xs text-gray-600 mt-1">Машинный RU сверх основного (от всех строк)</div>
                 </div>
             </div>
         </section>
 
-        <!-- Прогресс-бары -->
-        <section class="border border-gray-200 rounded-lg p-4 bg-white">
-            <h2 class="text-sm font-semibold text-gray-800 mb-3">Визуализация прогресса</h2>
-            <div class="space-y-4">
-                <div>
-                    <div class="flex justify-between text-xs text-gray-600 mb-1">
-                        <span>Основной перевод - Русский</span>
-                        <span id="mainRUPercentBar">-</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3">
-                        <div id="mainRUProgress" class="bg-blue-600 h-3 rounded-full transition-all" style="width: 0%"></div>
-                    </div>
+        <!-- Диаграмма статуса перевода -->
+        <section class="border border-gray-200 rounded-lg p-4 bg-slate-900 text-slate-50">
+            <h2 class="text-sm font-semibold mb-3 text-center">Статус перевода (строки текста)</h2>
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-full max-w-md">
+                    <canvas id="statusChart" height="200"></canvas>
                 </div>
-                <div>
-                    <div class="flex justify-between text-xs text-gray-600 mb-1">
-                        <span>Машинный перевод - Русский</span>
-                        <span id="cnRUPercentBar">-</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3">
-                        <div id="cnRUProgress" class="bg-blue-600 h-3 rounded-full transition-all" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex justify-between text-xs text-gray-600 mb-1">
-                        <span>Машинный RU сверх основного</span>
-                        <span id="uniqueRUPercentBar">-</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-3">
-                        <div id="uniqueRUProgress" class="bg-green-600 h-3 rounded-full transition-all" style="width: 0%"></div>
-                    </div>
+                <div class="flex flex-wrap justify-center gap-4 text-[11px]">
+                    <span class="inline-flex items-center gap-1">
+                        <span class="inline-block h-2 w-2 rounded-full bg-cyan-400"></span>
+                        <span id="legendMachine">Машинный перевод: 0</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1">
+                        <span class="inline-block h-2 w-2 rounded-full bg-emerald-400"></span>
+                        <span id="legendEdited">Отредактированный перевод: 0</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1">
+                        <span class="inline-block h-2 w-2 rounded-full bg-fuchsia-400"></span>
+                        <span id="legendUntranslated">Не переведено: 0</span>
+                    </span>
                 </div>
             </div>
         </section>
@@ -135,6 +126,8 @@
 </div>
 
 <script>
+    let statusChart = null;
+
     // Функция для определения, является ли текст русским
     function isRussian(text) {
         if (!text || text.trim().length === 0) return false;
@@ -209,16 +202,17 @@
         if (ruPercentEl) ruPercentEl.textContent = `${stats.ruPercent}%`;
         if (enPercentEl) enPercentEl.textContent = `${stats.enPercent}%`;
         
-        // Обновляем прогресс-бары
+        // Обновляем прогресс-бары (если они есть в разметке)
         if (elementPrefix === 'main') {
-            document.getElementById('mainRUProgress').style.width = `${stats.ruPercent}%`;
-            document.getElementById('mainRUPercentBar').textContent = `${stats.ruPercent}%`;
+            const bar = document.getElementById('mainRUProgress');
+            const label = document.getElementById('mainRUPercentBar');
+            if (bar) bar.style.width = `${stats.ruPercent}%`;
+            if (label) label.textContent = `${stats.ruPercent}%`;
         } else if (elementPrefix === 'cn') {
-            document.getElementById('cnRUProgress').style.width = `${stats.ruPercent}%`;
-            document.getElementById('cnRUPercentBar').textContent = `${stats.ruPercent}%`;
-        } else if (elementPrefix === 'unique') {
-            document.getElementById('uniqueRUProgress').style.width = `${stats.ruPercent}%`;
-            document.getElementById('uniqueRUPercentBar').textContent = `${stats.ruPercent}%`;
+            const bar = document.getElementById('cnRUProgress');
+            const label = document.getElementById('cnRUPercentBar');
+            if (bar) bar.style.width = `${stats.ruPercent}%`;
+            if (label) label.textContent = `${stats.ruPercent}%`;
         }
     }
 
@@ -266,8 +260,9 @@
             const ruShareInCn = cnStats.total > 0 ? ((cnStats.ru / cnStats.total) * 100).toFixed(1) : 0;
             // Насколько машинный RU больше основного RU (ожидаемо большие проценты)
             const ruRatio = mainStats.ru > 0 ? ((cnStats.ru / mainStats.ru) * 100).toFixed(1) : 0;
-            // Какая доля машинного RU ещё не попала в основной перевод
-            const extraRuShareInCn = cnStats.ru > 0 ? ((extraRu / cnStats.ru) * 100).toFixed(1) : 0;
+            // Какая доля всех строк файла с машинным переводом — это RU, которых ещё нет в основном
+            // (делим "машинный RU сверх основного" на ОБЩЕЕ количество строк в машинном файле)
+            const extraRuShareInCn = cnStats.total > 0 ? ((extraRu / cnStats.total) * 100).toFixed(1) : 0;
 
             document.getElementById('uniqueTotal').textContent = extraRu.toLocaleString();
             document.getElementById('uniqueRU').textContent = cnStats.ru.toLocaleString();
@@ -276,9 +271,41 @@
             document.getElementById('uniqueENPercent').textContent = `${ruRatio}%`;
             document.getElementById('uniqueEmpty').textContent = `${extraRuShareInCn}%`;
 
-            // Прогресс-бар — показываем долю машинного RU, которая ещё не покрыта основным переводом
-            document.getElementById('uniqueRUProgress').style.width = `${extraRuShareInCn}%`;
-            document.getElementById('uniqueRUPercentBar').textContent = `${extraRuShareInCn}%`;
+            // Диаграмма статуса перевода
+            const machineOnly = extraRu;                      // строки только с машинным переводом
+            const edited = mainStats.ru;                      // отредактированный (основной) перевод
+            const untranslated = cnStats.en + cnStats.empty;  // EN + пустые в машинном файле
+
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            if (statusChart) {
+                statusChart.destroy();
+            }
+            statusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Машинный перевод', 'Отредактированный перевод', 'Не переведено'],
+                    datasets: [{
+                        data: [machineOnly, edited, untranslated],
+                        backgroundColor: ['#22d3ee', '#4ade80', '#e879f9'],
+                        borderColor: '#0f172a',
+                        borderWidth: 2,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: { display: false },
+                    },
+                    cutout: '60%',
+                }
+            });
+
+            document.getElementById('legendMachine').textContent =
+                `Машинный перевод: ${machineOnly.toLocaleString()}`;
+            document.getElementById('legendEdited').textContent =
+                `Отредактированный перевод: ${edited.toLocaleString()}`;
+            document.getElementById('legendUntranslated').textContent =
+                `Не переведено: ${untranslated.toLocaleString()}`;
 
             loadingInfo.textContent = `✅ Данные загружены. Основной: ${mainStats.total.toLocaleString()} строк, Машинный: ${cnStats.total.toLocaleString()} строк, Машинный RU сверх основного: ${extraRu.toLocaleString()} строк`;
         } catch (e) {
