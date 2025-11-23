@@ -14,7 +14,7 @@
             <div>
                 <h1 class="text-xl font-semibold text-gray-900">Where Winds Meet – статистика переводов</h1>
                 <p class="text-xs text-gray-500 mt-1">
-                    Статистика по файлам <span class="font-mono">translation_ru.tsv</span> и <span class="font-mono">_cn_translate/translation_ru.tsv</span>
+                    Статистика по файлам перевода
                 </p>
             </div>
             <button id="btnRefresh" class="inline-flex items-center rounded border border-gray-800 bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-50 hover:bg-gray-700">
@@ -23,7 +23,46 @@
         </div>
     </header>
 
+    <!-- Прелоадер загрузки файлов -->
+    <section class="border-b border-gray-200 bg-white">
+        <div id="preloader" class="max-w-6xl mx-auto px-4 py-2 flex items-center gap-3 text-xs text-gray-600">
+            <div class="w-40 flex-shrink-0 text-[11px] text-gray-500">
+                Загрузка файлов перевода...
+            </div>
+            <div class="flex-1">
+                <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div id="preloaderBar" class="bg-gray-800 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+            </div>
+            <div id="preloaderText" class="w-40 flex-shrink-0 text-right text-[11px] text-gray-500">
+                Ожидание...
+            </div>
+        </div>
+    </section>
+
     <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-4 space-y-4">
+        <!-- Панель выбора файлов -->
+        <section class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <div class="flex flex-col md:flex-row md:items-end gap-3 md:gap-6">
+                <div class="flex-1">
+                    <label for="aiFileSelect" class="block text-xs font-medium text-gray-700 mb-1">
+                        Машинный перевод (AI-файл)
+                    </label>
+                    <select id="aiFileSelect"
+                            class="w-full rounded border-gray-300 bg-white text-xs px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-700 focus:border-gray-700">
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label for="langFileSelect" class="block text-xs font-medium text-gray-700 mb-1">
+                        Языковой файл для сравнения
+                    </label>
+                    <select id="langFileSelect"
+                            class="w-full rounded border-gray-300 bg-white text-xs px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-700 focus:border-gray-700">
+                    </select>
+                </div>
+            </div>
+        </section>
+
         <!-- Статистика основного перевода -->
         <section class="border border-gray-200 rounded-lg p-4 bg-white">
             <h2 class="text-sm font-semibold text-gray-800 mb-3">Основной перевод (translation_ru.tsv)</h2>
@@ -45,9 +84,9 @@
             </div>
         </section>
 
-        <!-- Статистика машинного перевода -->
+        <!-- Статистика выбранного языкового файла -->
         <section class="border border-gray-200 rounded-lg p-4 bg-white">
-            <h2 class="text-sm font-semibold text-gray-800 mb-3">Предворительный перевод</h2>
+            <h2 class="text-sm font-semibold text-gray-800 mb-3" id="langStatsTitle">Предворительный перевод</h2>
             <div id="cnStats" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="text-center p-3 bg-gray-50 rounded">
                     <div class="text-2xl font-bold text-gray-900" id="cnTotal">-</div>
@@ -60,7 +99,7 @@
                 </div>
                 <div class="text-center p-3 bg-yellow-50 rounded">
                     <div class="text-2xl font-bold text-yellow-700" id="cnEN">-</div>
-                    <div class="text-xs text-yellow-600 mt-1">Английский (EN)</div>
+                    <div class="text-xs text-yellow-600 mt-1" id="cnLangLabel">Английский (EN)</div>
                     <div class="text-xs text-yellow-500 mt-1" id="cnENPercent">-</div>
                 </div>
             </div>
@@ -75,7 +114,7 @@
             <div id="uniqueStats" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="text-center p-3 bg-green-50 rounded">
                     <div class="text-2xl font-bold text-green-700" id="uniqueTotal">-</div>
-                    <div class="text-xs text-green-600 mt-1">Машинный RU сверх основного</div>
+                    <div class="text-xs text-green-600 mt-1">Машинный перевод</div>
                 </div>
                 <div class="text-center p-3 bg-blue-50 rounded">
                     <div class="text-2xl font-bold text-blue-700" id="uniqueRU">-</div>
@@ -84,7 +123,7 @@
                 </div>
                 <div class="text-center p-3 bg-yellow-50 rounded">
                     <div class="text-2xl font-bold text-yellow-700" id="uniqueEN">-</div>
-                    <div class="text-xs text-yellow-600 mt-1">Основной RU (всего)</div>
+                    <div class="text-xs text-yellow-600 mt-1">Основной RU (от машинного RU)</div>
                     <div class="text-xs text-yellow-500 mt-1" id="uniqueENPercent">-</div>
                 </div>
                 <div class="text-center p-3 bg-gray-50 rounded">
@@ -126,6 +165,19 @@
 </div>
 
 <script>
+    // Доступные файлы машинного перевода (AI)
+    const aiFiles = [
+        { file: 'zog_ru.tsv', name: 'ZOG – машинный перевод' },
+        { file: 'noname_ru.tsv', name: 'Noname – машинный перевод' },
+    ];
+
+    // Доступные языковые файлы для сравнения
+    const languageFiles = [
+        { id: 'ru', file: 'translation_ru.tsv', name: 'Основной перевод (RU)', code: 'RU' },
+        { id: 'en', file: 'translation_en.tsv', name: 'Английский (EN)', code: 'EN' },
+        { id: 'cn', file: 'translation_cn.tsv', name: 'Китайский (CN)', code: 'CN' },
+    ];
+
     let statusChart = null;
 
     // Функция для определения, является ли текст русским
@@ -234,47 +286,105 @@
     // Основная функция загрузки и обработки данных
     async function loadAndProcess() {
         const loadingInfo = document.getElementById('loadingInfo');
+        const preloader = document.getElementById('preloader');
+        const preloaderBar = document.getElementById('preloaderBar');
+        const preloaderText = document.getElementById('preloaderText');
+
+        const setPreloader = (percent, text) => {
+            if (preloaderBar) {
+                preloaderBar.style.width = `${percent}%`;
+            }
+            if (preloaderText) {
+                preloaderText.textContent = text;
+            }
+        };
+
+        if (preloader) {
+            preloader.classList.remove('opacity-0');
+        }
+
         loadingInfo.textContent = 'Загрузка файлов...';
+        setPreloader(5, 'Инициализация...');
 
         try {
-            // Загружаем оба файла
+            // Определяем выбранные файлы
+            const aiSelect = document.getElementById('aiFileSelect');
+            const langSelect = document.getElementById('langFileSelect');
+            const aiIndex = aiSelect ? parseInt(aiSelect.value, 10) || 0 : 0;
+            const langIndex = langSelect ? parseInt(langSelect.value, 10) || 0 : 0;
+            const aiCfg = aiFiles[Math.max(0, Math.min(aiIndex, aiFiles.length - 1))];
+            const langCfg = languageFiles[Math.max(0, Math.min(langIndex, languageFiles.length - 1))];
+
+            // Загружаем основной файл перевода (не переключается)
             loadingInfo.textContent = 'Загрузка translation_ru.tsv...';
+            setPreloader(15, 'Загрузка основного перевода...');
             const mainRows = await loadFile('../translation_ru.tsv');
-            
-            loadingInfo.textContent = 'Загрузка cn_translate/translation_ru.tsv...';
-            const cnRows = await loadFile('../cn_translate/translation_ru.tsv');
+
+            // Загружаем выбранный языковой файл
+            loadingInfo.textContent = `Загрузка ${langCfg.file}...`;
+            setPreloader(40, 'Загрузка языкового файла...');
+            const langRows = await loadFile(`../${langCfg.file}`);
+
+            // Загружаем выбранный AI-файл
+            loadingInfo.textContent = `Загрузка translates_ai/${aiCfg.file}...`;
+            setPreloader(65, 'Загрузка AI-файла...');
+            const aiRows = await loadFile(`../translates_ai/${aiCfg.file}`);
 
             // Подсчитываем статистику для основного перевода
             loadingInfo.textContent = 'Обработка данных...';
+            setPreloader(80, 'Обработка данных...');
             const mainStats = calculateStats(mainRows);
             updateStats('main', mainStats);
 
-            // Подсчитываем статистику для машинного перевода
-            const cnStats = calculateStats(cnRows);
-            updateStats('cn', cnStats);
+            // Подсчитываем статистику для выбранного языкового файла
+            const langStats = calculateStats(langRows);
+            updateStats('cn', langStats);
 
-            // Дополнительная статистика по машинному RU
-            // Разница по количеству русских строк между машинным и основным переводом
-            const extraRu = Math.max(cnStats.ru - mainStats.ru, 0);
-            // Доля русских строк в машинном переводе
-            const ruShareInCn = cnStats.total > 0 ? ((cnStats.ru / cnStats.total) * 100).toFixed(1) : 0;
-            // Насколько машинный RU больше основного RU (ожидаемо большие проценты)
-            const ruRatio = mainStats.ru > 0 ? ((cnStats.ru / mainStats.ru) * 100).toFixed(1) : 0;
-            // Какая доля всех строк файла с машинным переводом — это RU, которых ещё нет в основном
-            // (делим "машинный RU сверх основного" на ОБЩЕЕ количество строк в машинном файле)
-            const extraRuShareInCn = cnStats.total > 0 ? ((extraRu / cnStats.total) * 100).toFixed(1) : 0;
+            // Обновляем заголовок и подписи под выбранный языковой файл
+            const langTitle = document.getElementById('langStatsTitle');
+            const langLabel = document.getElementById('cnLangLabel');
+            if (langTitle) langTitle.textContent = `Предворительный перевод (${langCfg.name})`;
+            if (langLabel) langLabel.textContent = langCfg.name;
+
+            // Подсчитываем статистику для AI-файла
+            const aiStats = calculateStats(aiRows);
+
+            // Расчёт покрытия выбранного языкового файла русским переводом (основной + AI)
+            const mainMap = new Map(mainRows.map(r => [r.id, r.text]));
+            const aiMap = new Map(aiRows.map(r => [r.id, r.text]));
+            let coveredInLang = 0;
+            for (const row of langRows) {
+                const mainTxt = mainMap.get(row.id) || '';
+                const aiTxt = aiMap.get(row.id) || '';
+                if (isRussian(mainTxt) || isRussian(aiTxt)) {
+                    coveredInLang++;
+                }
+            }
+            const coveredPercent = langStats.total > 0 ? ((coveredInLang / langStats.total) * 100).toFixed(1) : 0;
+            const cnRUEl = document.getElementById('cnRU');
+            const cnRUPercentEl = document.getElementById('cnRUPercent');
+            if (cnRUEl) cnRUEl.textContent = coveredInLang.toLocaleString();
+            if (cnRUPercentEl) cnRUPercentEl.textContent = `${coveredPercent}%`;
+
+            // Дополнительная статистика по машинному RU (AI) относительно основного перевода
+            const extraRu = Math.max(aiStats.ru - mainStats.ru, 0);
+            const ruShareInAi = aiStats.total > 0 ? ((aiStats.ru / aiStats.total) * 100).toFixed(1) : 0;
+            // Доля основного RU от машинного RU (вменяемый процент, не больше 100)
+            const ruRatio = aiStats.ru > 0 ? ((mainStats.ru / aiStats.ru) * 100).toFixed(1) : 0;
+            const extraRuShareInAi = aiStats.total > 0 ? ((extraRu / aiStats.total) * 100).toFixed(1) : 0;
 
             document.getElementById('uniqueTotal').textContent = extraRu.toLocaleString();
-            document.getElementById('uniqueRU').textContent = cnStats.ru.toLocaleString();
-            document.getElementById('uniqueRUPercent').textContent = `${ruShareInCn}%`;
+            document.getElementById('uniqueRU').textContent = aiStats.ru.toLocaleString();
+            document.getElementById('uniqueRUPercent').textContent = `${ruShareInAi}%`;
             document.getElementById('uniqueEN').textContent = mainStats.ru.toLocaleString();
             document.getElementById('uniqueENPercent').textContent = `${ruRatio}%`;
-            document.getElementById('uniqueEmpty').textContent = `${extraRuShareInCn}%`;
+            document.getElementById('uniqueEmpty').textContent = `${extraRuShareInAi}%`;
 
             // Диаграмма статуса перевода
-            const machineOnly = extraRu;                      // строки только с машинным переводом
-            const edited = mainStats.ru;                      // отредактированный (основной) перевод
-            const untranslated = cnStats.en + cnStats.empty;  // EN + пустые в машинном файле
+            const machineOnly = extraRu;// строки только с машинным переводом (AI)
+            const edited = mainStats.ru;// отредактированный (основной) перевод
+            const rawUntranslated = (langStats.en + langStats.empty) - extraRu - mainStats.ru;
+            const untranslated = Math.max(rawUntranslated, 0);
 
             const ctx = document.getElementById('statusChart').getContext('2d');
             if (statusChart) {
@@ -307,10 +417,52 @@
             document.getElementById('legendUntranslated').textContent =
                 `Не переведено: ${untranslated.toLocaleString()}`;
 
-            loadingInfo.textContent = `✅ Данные загружены. Основной: ${mainStats.total.toLocaleString()} строк, Машинный: ${cnStats.total.toLocaleString()} строк, Машинный RU сверх основного: ${extraRu.toLocaleString()} строк`;
+            loadingInfo.textContent = `✅ Данные загружены. Основной: ${mainStats.total.toLocaleString()} строк, AI: ${aiStats.total.toLocaleString()} строк, Машинный RU сверх основного: ${extraRu.toLocaleString()} строк`;
+            setPreloader(100, 'Готово');
+            setTimeout(() => {
+                if (preloader) {
+                    preloader.classList.add('opacity-0');
+                }
+            }, 600);
         } catch (e) {
             console.error(e);
             loadingInfo.textContent = `❌ Ошибка: ${e.message}`;
+            setPreloader(0, 'Ошибка загрузки');
+        }
+    }
+
+    // Инициализация селекторов и обработчики
+    function initSelectors() {
+        const aiSelect = document.getElementById('aiFileSelect');
+        const langSelect = document.getElementById('langFileSelect');
+
+        if (aiSelect && aiSelect.options.length === 0) {
+            aiFiles.forEach((cfg, index) => {
+                const opt = document.createElement('option');
+                opt.value = String(index);
+                opt.textContent = cfg.name;
+                aiSelect.appendChild(opt);
+            });
+        }
+
+        if (langSelect && langSelect.options.length === 0) {
+            languageFiles.forEach((cfg, index) => {
+                const opt = document.createElement('option');
+                opt.value = String(index);
+                opt.textContent = cfg.name;
+                langSelect.appendChild(opt);
+            });
+        }
+
+        if (aiSelect) {
+            aiSelect.addEventListener('change', () => {
+                loadAndProcess();
+            });
+        }
+        if (langSelect) {
+            langSelect.addEventListener('change', () => {
+                loadAndProcess();
+            });
         }
     }
 
@@ -320,6 +472,7 @@
     });
 
     // Автозагрузка при открытии страницы
+    initSelectors();
     loadAndProcess();
 </script>
 </body>
