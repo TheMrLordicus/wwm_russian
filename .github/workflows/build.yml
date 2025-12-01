@@ -30,7 +30,7 @@ jobs:
       - name: Download latest game release
         run: |
           mkdir -p ./game_files
-          LATEST_TAG=$(gh release list --exclude-drafts --exclude-pre-releases | grep "^game-" | head -1 | awk '{print $1}')
+          LATEST_TAG=$(gh release list --exclude-drafts --exclude-pre-releases | grep "game-v" | awk '{print $3}')
           echo "Latest game release: $LATEST_TAG"
           gh release download "$LATEST_TAG" \
             --pattern "*.bin" \
