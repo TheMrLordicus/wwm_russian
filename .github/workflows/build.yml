@@ -1,14 +1,13 @@
 name: Build Translation Release
 
-# Можно запускать автоматом на пуше, у меня в форк-версии так, потому убираю ставлю по кнопке если захочешь сделать авто билд
 # Для того чтобы работала, нужно предварительно создать релиз с game-vXXXX тэгом и залить туда любые файлы игры добавив им .bin в конце.
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
-  #   paths:
-  #     - 'translation_ru.tsv'
+  push:
+    branches:
+      - main
+    paths:
+      - 'translation_ru.tsv'
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
